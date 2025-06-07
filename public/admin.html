@@ -43,8 +43,9 @@
 
 <body>
   <div class="container my-4">
-    <div class="header-bar text-center">
+    <div class="header-bar d-flex justify-content-between align-items-center">
       <h2 class="mb-0">🎛️ Tableau de bord – Feedbacks</h2>
+      <button id="logoutBtn" class="btn btn-light btn-sm">Déconnexion</button>
     </div>
 
     <div class="search-bar d-flex gap-3 flex-wrap">
@@ -75,6 +76,12 @@
   </div>
 
   <script>
+    // SCRIPT DE PROTECTION AU TOUT DÉBUT
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      window.location.href = '/login'; // Redirection si pas de token
+    }
+
     let allFeedbacks = [];
 
     function formatDate(dateStr) {
@@ -100,22 +107,32 @@
 
       const res = await fetch('/graphql', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          // AJOUT DE L'EN-TÊTE D'AUTHENTIFICATION
+          'Authorization': 'Bearer ' + token
+        },
         body: JSON.stringify(query)
       });
 
       const json = await res.json();
-      if (json.data.deleteFeedback) {
+      if (json.data && json.data.deleteFeedback) {
         alert("🗑️ Feedback supprimé !");
         loadFeedbacks();
       } else {
-        alert("❌ Erreur lors de la suppression !");
+        alert("❌ Erreur : " + (json.errors ? json.errors[0].message : "Impossible de supprimer."));
       }
     }
 
     function renderTable(feedbacks) {
       const tbody = document.getElementById('tableBody');
       tbody.innerHTML = '';
+      if (!feedbacks || feedbacks.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="6">Aucun feedback à afficher.</td>`;
+        tbody.appendChild(row);
+        return;
+      }
       feedbacks.forEach(fb => {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -132,6 +149,10 @@
 
     function renderStats() {
       const stats = {};
+      if (!allFeedbacks || allFeedbacks.length === 0) {
+        document.getElementById('statsContainer').innerHTML = '<p>Pas de données pour les statistiques.</p>';
+        return;
+      }
       allFeedbacks.forEach(fb => {
         if (!stats[fb.product]) stats[fb.product] = [];
         stats[fb.product].push(fb.rating);
@@ -165,22 +186,31 @@
     }
 
     async function loadFeedbacks() {
-      const query = {
-        query: `{ allFeedbacks { id user product rating comment date } }`
-      };
-      const res = await fetch('/graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(query)
-      });
-      const json = await res.json();
-      allFeedbacks = json.data.allFeedbacks || [];
-      renderTable(allFeedbacks);
-      renderStats();
+      const query = { query: `{ allFeedbacks { id user product rating comment date } }` };
+      try {
+        const res = await fetch('/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(query)
+        });
+        const json = await res.json();
+        allFeedbacks = json.data.allFeedbacks || [];
+        renderTable(allFeedbacks);
+        renderStats();
+      } catch (err) {
+        console.error("Erreur de chargement des feedbacks:", err);
+        document.getElementById('tableBody').innerHTML = `<td colspan="6">Erreur de chargement des données.</td>`;
+      }
     }
 
+    // GESTIONNAIRES D'ÉVÉNEMENTS
     document.getElementById('searchUser').addEventListener('input', filterFeedbacks);
     document.getElementById('searchProduct').addEventListener('input', filterFeedbacks);
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('authToken');
+      window.location.href = '/login';
+    });
 
     loadFeedbacks();
   </script>
