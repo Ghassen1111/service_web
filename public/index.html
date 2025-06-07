@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Envoyer un Feedback</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(120deg, #f2f4f8, #d9e2ec);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .card {
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 0 12px rgba(0,0,0,0.1);
+      background-color: white;
+      max-width: 500px;
+      width: 100%;
+    }
+    .star-select span {
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: lightgray;
+    }
+    .star-select .selected {
+      color: gold;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 class="text-center mb-4">⭐ Donnez votre avis</h2>
+    <form id="feedbackForm">
+      <input id="user" placeholder="Votre nom" class="form-control mb-3" required />
+      <input id="product" placeholder="Produit utilisé" class="form-control mb-3" required />
+      <div class="star-select mb-3 text-center" id="starContainer">
+        Note :
+        <span data-value="1">★</span>
+        <span data-value="2">★</span>
+        <span data-value="3">★</span>
+        <span data-value="4">★</span>
+        <span data-value="5">★</span>
+      </div>
+      <textarea id="comment" placeholder="Votre commentaire..." class="form-control mb-3" required></textarea>
+      <button class="btn btn-success w-100">Envoyer</button>
+    </form>
+    <div class="alert alert-success mt-3 d-none" id="successMsg">✅ Merci pour votre retour !</div>
+  </div>
+
+  <script>
+    let selectedRating = 0;
+    const stars = document.querySelectorAll('#starContainer span');
+    stars.forEach(star => {
+      star.addEventListener('click', () => {
+        selectedRating = parseInt(star.dataset.value);
+        stars.forEach(s => s.classList.remove('selected'));
+        for (let i = 0; i < selectedRating; i++) stars[i].classList.add('selected');
+      });
+    });
+
+    document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const user = document.getElementById('user').value;
+      const product = document.getElementById('product').value;
+      const comment = document.getElementById('comment').value;
+
+      if (selectedRating === 0) {
+        alert("Veuillez sélectionner une note entre 1 et 5 ⭐");
+        return;
+      }
+
+      const query = {
+        query: `
+          mutation {
+            addFeedback(user: "${user}", product: "${product}", rating: ${selectedRating}, comment: "${comment}") {
+              id user product rating comment date
+            }
+          }
+        `
+      };
+
+      const res = await fetch('/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(query)
+      });
+
+      const json = await res.json();
+
+      if (json.data.addFeedback) {
+        document.getElementById('feedbackForm').reset();
+        selectedRating = 0;
+        stars.forEach(s => s.classList.remove('selected'));
+        document.getElementById('successMsg').classList.remove('d-none');
+
+        // Historique local facultatif
+        let old = JSON.parse(localStorage.getItem('feedbacks') || '[]');
+        old.push(json.data.addFeedback);
+        localStorage.setItem('feedbacks', JSON.stringify(old));
+      }
+    });
+  </script>
+</body>
+</html>
