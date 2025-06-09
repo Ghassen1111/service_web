@@ -1,1 +1,1 @@
-//test
+//préparation du fichier read.me
