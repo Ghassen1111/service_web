@@ -10,15 +10,21 @@ module.exports = buildSchema(`
     date: String!
   }
 
-  # Type de retour pour une authentification réussie
   type AuthData {
     userId: ID!
     token: String!
     tokenExpiration: Int!
   }
 
+  type Product {
+    id: ID!
+    name: String!
+    category: String!
+  }
+
   type Query {
     allFeedbacks: [Feedback]
+    allProducts: [Product]
   }
 
   type Mutation {
